@@ -1,0 +1,1214 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Shinonome Images 2.0 WebUI</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=Noto+Sans+JP:wght@300;400;500;700&family=DM+Mono:wght@300;400&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; overflow: hidden; }
+
+    :root {
+      --bg:          #080b14;
+      --panel:       #0d1121;
+      --surface:     #111827;
+      --surface2:    #1a2236;
+      --border:      rgba(255,255,255,.07);
+      --border-hi:   rgba(0,212,255,.3);
+      --accent:      #00d4ff;
+      --accent-dim:  rgba(0,212,255,.12);
+      --accent-glow: rgba(0,212,255,.25);
+      --text:        #e8eaf4;
+      --text-soft:   rgba(232,234,244,.65);
+      --muted:       rgba(232,234,244,.35);
+      --danger:      #ff5b5b;
+      --success:     #4ade80;
+      --sans:        'Noto Sans JP', sans-serif;
+      --display:     'Syne', sans-serif;
+      --mono:        'DM Mono', monospace;
+      --left-w:      380px;
+      --ease:        cubic-bezier(.4,0,.2,1);
+    }
+
+    body { font-family: var(--sans); background: var(--bg); color: var(--text); display: flex; flex-direction: column; }
+
+    body::before {
+      content: ''; position: fixed; inset: 0; z-index: 0; pointer-events: none;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+      background-size: 128px; opacity: .55; mix-blend-mode: overlay;
+    }
+
+    /* ── Header ── */
+    .header {
+      flex-shrink: 0; z-index: 10; position: relative;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0 28px; height: 56px;
+      background: rgba(8,11,20,.92); border-bottom: 1px solid var(--border);
+      backdrop-filter: blur(12px);
+    }
+    .header-logo { display: flex; align-items: center; gap: 12px; }
+    .logo-mark {
+      width: 30px; height: 30px; border-radius: 7px;
+      background: linear-gradient(135deg, var(--accent) 0%, #0066ff 100%);
+      display: flex; align-items: center; justify-content: center;
+      font-family: var(--display); font-size: 12px; font-weight: 800; color: #000;
+      box-shadow: 0 0 14px var(--accent-glow); flex-shrink: 0;
+    }
+    .logo-text { font-family: var(--display); font-size: 15px; font-weight: 700; color: var(--text); }
+    .logo-text span { color: var(--accent); }
+    .header-right { display: flex; align-items: center; gap: 16px; }
+    .badge {
+      font-family: var(--mono); font-size: 10px; letter-spacing: .12em;
+      color: var(--accent); background: var(--accent-dim);
+      border: 1px solid rgba(0,212,255,.2); border-radius: 4px; padding: 3px 8px;
+    }
+    .hdr-btn {
+      font-family: var(--sans); font-size: 12px; color: var(--muted);
+      background: none; border: none; cursor: pointer; transition: color .2s;
+    }
+    .hdr-btn:hover { color: var(--accent); }
+
+    /* ── App Shell ── */
+    .app {
+      flex: 1; display: grid;
+      grid-template-columns: var(--left-w) 1fr;
+      min-height: 0; position: relative; z-index: 1;
+    }
+
+    /* ── Left Panel ── */
+    .left { background: var(--panel); border-right: 1px solid var(--border); display: flex; flex-direction: column; overflow: hidden; }
+
+    .left-scroll {
+      flex: 1; overflow-y: auto; padding: 20px 18px 24px;
+      display: flex; flex-direction: column; gap: 20px;
+      scrollbar-width: thin; scrollbar-color: rgba(255,255,255,.08) transparent;
+    }
+    .left-scroll::-webkit-scrollbar { width: 3px; }
+    .left-scroll::-webkit-scrollbar-thumb { background: rgba(255,255,255,.1); border-radius: 3px; }
+
+    .sec-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+    .sec-head-l { display: flex; align-items: center; gap: 8px; }
+    .sec-line { width: 3px; height: 12px; border-radius: 2px; background: var(--accent); box-shadow: 0 0 8px var(--accent-glow); }
+    .sec-title { font-family: var(--display); font-size: 10px; font-weight: 700; letter-spacing: .15em; color: var(--muted); text-transform: uppercase; }
+    .sec-action { font-family: var(--sans); font-size: 11px; color: var(--muted); background: none; border: none; cursor: pointer; transition: color .2s; padding: 0; }
+    .sec-action:hover { color: var(--accent); }
+
+    /* Prompt */
+    .prompt-wrap { position: relative; }
+    textarea#prompt {
+      width: 100%; height: 160px; resize: none;
+      background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+      padding: 12px 14px 28px; font-family: var(--mono); font-size: 11.5px; font-weight: 300;
+      line-height: 1.75; color: var(--text); outline: none; caret-color: var(--accent);
+      transition: border-color .25s var(--ease), box-shadow .25s var(--ease);
+    }
+    textarea#prompt::placeholder { color: var(--muted); }
+    textarea#prompt:focus { border-color: var(--border-hi); box-shadow: 0 0 0 3px var(--accent-dim); }
+    .char-count { position: absolute; bottom: 9px; right: 11px; font-family: var(--mono); font-size: 10px; color: var(--muted); pointer-events: none; }
+
+    .sep { height: 1px; background: var(--border); margin: 0 -18px; }
+
+    /* ── Reference Images ── */
+    .ref-upload-btn {
+      display: flex; align-items: center; gap: 7px;
+      width: 100%; padding: 9px 14px; border-radius: 8px;
+      border: 1.5px dashed rgba(255,255,255,.12); background: rgba(255,255,255,.02);
+      font-family: var(--sans); font-size: 12px; font-weight: 500;
+      color: var(--muted); cursor: pointer; transition: border-color .2s, color .2s, background .2s;
+      margin-bottom: 10px;
+    }
+    .ref-upload-btn:hover { border-color: var(--border-hi); color: var(--accent); background: var(--accent-dim); }
+    .ref-upload-btn.drag-over {
+      border-color: var(--accent); color: var(--accent);
+      background: var(--accent-dim);
+      box-shadow: 0 0 0 3px var(--accent-dim), inset 0 0 20px rgba(0,212,255,.06);
+      transform: scale(1.01);
+    }
+    .paste-hint {
+      font-family: var(--mono); font-size: 9.5px; color: var(--muted);
+      text-align: center; margin-top: 6px; letter-spacing: .04em;
+    }
+    .paste-hint kbd {
+      background: var(--surface2); border: 1px solid var(--border); border-radius: 4px;
+      padding: 1px 5px; font-family: var(--mono); font-size: 9px; color: var(--text-soft);
+    }
+    .ref-upload-btn .ico { font-size: 14px; }
+
+    #refGrid {
+      display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;
+    }
+
+    .ref-card {
+      position: relative; border-radius: 8px; overflow: hidden;
+      border: 1.5px solid var(--border);
+      background: var(--surface2); cursor: pointer;
+      transition: border-color .2s var(--ease), box-shadow .2s var(--ease);
+      animation: riseIn .3s var(--ease) both;
+    }
+    .ref-card.checked {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 2px var(--accent-dim), 0 0 14px var(--accent-glow);
+    }
+    .ref-card img { width: 100%; aspect-ratio: 1; object-fit: cover; display: block; }
+
+    .ref-check {
+      position: absolute; top: 5px; left: 5px;
+      width: 18px; height: 18px; border-radius: 5px;
+      border: 1.5px solid rgba(255,255,255,.4);
+      background: rgba(8,11,20,.6); backdrop-filter: blur(4px);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 11px; transition: background .15s, border-color .15s;
+      pointer-events: none;
+    }
+    .ref-card.checked .ref-check { background: var(--accent); border-color: var(--accent); color: #000; }
+    .ref-check::after { content: '✓'; font-weight: 700; opacity: 0; }
+    .ref-card.checked .ref-check::after { opacity: 1; }
+
+    .ref-del {
+      position: absolute; top: 4px; right: 4px;
+      width: 18px; height: 18px; border-radius: 4px;
+      background: rgba(255,50,50,.75); border: none; cursor: pointer;
+      font-size: 10px; color: #fff; display: flex; align-items: center; justify-content: center;
+      opacity: 0; transition: opacity .15s;
+    }
+    .ref-card:hover .ref-del { opacity: 1; }
+
+    .ref-name {
+      font-family: var(--mono); font-size: 9px; color: var(--muted);
+      padding: 3px 5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+      background: rgba(8,11,20,.7);
+    }
+
+    .ref-status {
+      font-family: var(--mono); font-size: 10px; color: var(--muted); margin-top: 8px;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .ref-status span { color: var(--accent); }
+    .ref-status-btns { display: flex; gap: 8px; }
+    .ref-status-btns button {
+      font-size: 10px; color: var(--muted); background: none; border: none; cursor: pointer;
+      padding: 0; transition: color .2s;
+    }
+    .ref-status-btns button:hover { color: var(--accent); }
+
+    /* Controls */
+    .ctrl-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .ctrl { display: flex; flex-direction: column; gap: 5px; }
+    .ctrl.wide { grid-column: 1 / -1; }
+    .ctrl-label { font-family: var(--display); font-size: 9px; font-weight: 700; letter-spacing: .14em; color: var(--muted); text-transform: uppercase; }
+
+    select, input[type="number"] {
+      width: 100%; background: var(--surface); border: 1px solid var(--border);
+      border-radius: 8px; padding: 8px 10px;
+      font-family: var(--sans); font-size: 12.5px; color: var(--text);
+      outline: none; cursor: pointer; transition: border-color .2s, box-shadow .2s;
+      appearance: none; -webkit-appearance: none;
+    }
+    select {
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='rgba(232,234,244,.3)' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+      background-repeat: no-repeat; background-position: right 9px center; padding-right: 26px;
+    }
+    select:focus, input[type="number"]:focus { border-color: var(--border-hi); box-shadow: 0 0 0 3px var(--accent-dim); }
+    select option { background: #1a2236; }
+    input[type="number"] { -moz-appearance: textfield; }
+    input[type="number"]::-webkit-inner-spin-button { opacity: .4; filter: invert(1); }
+
+    /* Footer */
+    .left-footer { padding: 14px 18px 20px; border-top: 1px solid var(--border); flex-shrink: 0; }
+
+    #generateBtn {
+      width: 100%; padding: 14px; border: none; border-radius: 10px;
+      font-family: var(--display); font-size: 14px; font-weight: 700; letter-spacing: .06em;
+      cursor: pointer; color: #fff; display: flex; align-items: center; justify-content: center; gap: 8px;
+      background: linear-gradient(135deg, #0099cc 0%, #0044ff 100%);
+      box-shadow: 0 4px 20px rgba(0,100,255,.3), 0 0 0 1px rgba(0,212,255,.2);
+      transition: transform .15s var(--ease), box-shadow .25s var(--ease), opacity .2s;
+      position: relative; overflow: hidden;
+    }
+    #generateBtn::before { content: ''; position: absolute; inset: 0; background: linear-gradient(135deg, rgba(255,255,255,.15) 0%, transparent 60%); pointer-events: none; }
+    #generateBtn:hover:not(:disabled) { box-shadow: 0 6px 28px rgba(0,100,255,.45), 0 0 0 1px rgba(0,212,255,.35), 0 0 40px rgba(0,212,255,.12); transform: translateY(-1px); }
+    #generateBtn:active:not(:disabled) { transform: scale(.99); }
+    #generateBtn:disabled { opacity: .45; cursor: not-allowed; transform: none; }
+
+    .spinner { width: 14px; height: 14px; border: 2px solid rgba(255,255,255,.25); border-top-color: #fff; border-radius: 50%; animation: spin .65s linear infinite; flex-shrink: 0; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Model Toggle */
+    .model-toggle { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .model-btn {
+      display: flex; flex-direction: column; align-items: center; gap: 3px;
+      padding: 10px 8px; border-radius: 9px; cursor: pointer;
+      border: 1.5px solid var(--border); background: var(--surface);
+      transition: border-color .2s, background .2s, box-shadow .2s;
+    }
+    .model-btn:hover { border-color: var(--border-hi); background: var(--accent-dim); }
+    .model-btn.active {
+      border-color: var(--accent); background: var(--accent-dim);
+      box-shadow: 0 0 0 2px var(--accent-dim), 0 0 12px var(--accent-glow);
+    }
+    .model-name { font-family: var(--mono); font-size: 11px; color: var(--text); }
+    .model-btn.active .model-name { color: var(--accent); font-weight: 700; }
+    .model-note { font-family: var(--mono); font-size: 9px; color: var(--muted); }
+
+    .mode-tag {
+      display: inline-flex; align-items: center; gap: 5px;
+      font-family: var(--mono); font-size: 9px; letter-spacing: .08em;
+      color: var(--accent); background: var(--accent-dim); border: 1px solid rgba(0,212,255,.2);
+      border-radius: 4px; padding: 2px 7px; margin-top: 8px;
+    }
+    .mode-tag.hidden { display: none; }
+
+    /* ── Right Panel ── */
+    .right { background: var(--bg); display: flex; flex-direction: column; overflow: hidden; position: relative; }
+    .right::before {
+      content: ''; position: absolute; inset: 0; pointer-events: none; z-index: 0;
+      background-image: linear-gradient(rgba(255,255,255,.025) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.025) 1px, transparent 1px);
+      background-size: 40px 40px;
+      mask-image: radial-gradient(ellipse 80% 80% at 50% 50%, black 30%, transparent 100%);
+    }
+
+    .right-bar {
+      flex-shrink: 0; height: 44px; border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: space-between; padding: 0 20px;
+      position: relative; z-index: 2; background: rgba(8,11,20,.6); backdrop-filter: blur(8px);
+    }
+    .right-bar-title { font-family: var(--display); font-size: 11px; font-weight: 700; letter-spacing: .14em; color: var(--muted); text-transform: uppercase; display: flex; align-items: center; gap: 8px; }
+    .count-pill { display: none; background: var(--accent-dim); border: 1px solid rgba(0,212,255,.2); color: var(--accent); font-family: var(--mono); font-size: 10px; padding: 2px 8px; border-radius: 99px; }
+    .count-pill.show { display: inline-block; }
+    .right-bar-actions { display: flex; align-items: center; gap: 6px; }
+    .bar-btn { font-family: var(--sans); font-size: 11px; color: var(--muted); background: none; border: 1px solid transparent; cursor: pointer; padding: 4px 10px; border-radius: 6px; transition: color .2s, background .2s, border-color .2s; display: none; white-space: nowrap; }
+    .bar-btn.show { display: block; }
+    .bar-btn:hover { color: var(--text); background: rgba(255,255,255,.05); border-color: var(--border); }
+    .bar-btn.sel-dl { color: var(--accent); border-color: rgba(0,212,255,.25); }
+    .bar-btn.sel-dl:hover { background: var(--accent-dim); }
+    .bar-btn.danger:hover { color: var(--danger); background: rgba(255,91,91,.08); border-color: rgba(255,91,91,.2); }
+
+    /* カード選択チェックボックス */
+    .img-sel-check {
+      position: absolute; top: 8px; left: 8px; z-index: 3;
+      width: 20px; height: 20px; border-radius: 6px;
+      border: 1.5px solid rgba(255,255,255,.5); background: rgba(8,11,20,.65);
+      backdrop-filter: blur(4px); display: flex; align-items: center; justify-content: center;
+      font-size: 12px; font-weight: 700; color: #000;
+      opacity: 0; transition: opacity .15s, background .15s, border-color .15s;
+      pointer-events: none;
+    }
+    .img-card:hover .img-sel-check { opacity: 1; }
+    .img-card.selected .img-sel-check { opacity: 1; background: var(--accent); border-color: var(--accent); }
+    .img-card.selected .img-sel-check::after { content: '✓'; }
+    .img-card.selected { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-dim), 0 0 14px var(--accent-glow); }
+
+    .right-scroll {
+      flex: 1; overflow-y: auto; padding: 24px; position: relative; z-index: 1;
+      scrollbar-width: thin; scrollbar-color: rgba(255,255,255,.08) transparent;
+    }
+    .right-scroll::-webkit-scrollbar { width: 4px; }
+    .right-scroll::-webkit-scrollbar-thumb { background: rgba(255,255,255,.08); border-radius: 4px; }
+
+    /* Empty State */
+    #emptyState { height: 100%; min-height: 300px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; text-align: center; }
+    .empty-icon-wrap { width: 88px; height: 88px; border-radius: 22px; border: 1.5px dashed rgba(255,255,255,.1); background: rgba(255,255,255,.02); display: flex; align-items: center; justify-content: center; position: relative; }
+    .empty-icon-wrap::after { content: ''; position: absolute; inset: -8px; border-radius: 28px; border: 1px dashed rgba(0,212,255,.07); }
+    .empty-icon { font-size: 34px; opacity: .45; }
+    .empty-title { font-family: var(--display); font-size: 16px; font-weight: 700; color: rgba(232,234,244,.18); }
+    .empty-desc { font-size: 12.5px; color: var(--muted); max-width: 230px; line-height: 1.65; }
+
+    /* Result Grid */
+    #imageGrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px,1fr)); gap: 14px; }
+
+    .img-card {
+      border-radius: 12px; overflow: hidden; border: 1px solid var(--border);
+      background: var(--surface2); animation: riseIn .4s var(--ease) both; position: relative;
+      transition: border-color .25s var(--ease), box-shadow .25s var(--ease), transform .2s var(--ease);
+    }
+    @keyframes riseIn { from { opacity:0; transform:translateY(14px) scale(.97); } to { opacity:1; transform:translateY(0) scale(1); } }
+    .img-card:hover { border-color: rgba(0,212,255,.25); box-shadow: 0 8px 32px rgba(0,0,0,.4), 0 0 0 1px rgba(0,212,255,.1); transform: translateY(-2px); }
+    .img-card img { width: 100%; display: block; cursor: zoom-in; }
+
+    .img-card-overlay {
+      position: absolute; inset: 0; opacity: 0; transition: opacity .25s var(--ease);
+      background: linear-gradient(to top, rgba(8,11,20,.88) 0%, transparent 55%);
+      display: flex; align-items: flex-end; padding: 12px; gap: 8px;
+      pointer-events: none;
+    }
+    .img-card:hover .img-card-overlay { opacity: 1; }
+    .ov-num { font-family: var(--mono); font-size: 11px; color: var(--muted); flex: 1; }
+    .ov-btn {
+      font-family: var(--sans); font-size: 11px; font-weight: 600;
+      color: var(--text); background: rgba(255,255,255,.1); border: 1px solid rgba(255,255,255,.15);
+      border-radius: 6px; padding: 5px 11px; cursor: pointer; backdrop-filter: blur(4px);
+      transition: background .15s, border-color .15s, color .15s;
+      pointer-events: auto;
+    }
+    .ov-btn:hover { background: var(--accent); border-color: var(--accent); color: #000; font-weight: 700; }
+
+    /* Skeleton */
+    #skelGrid { display: none; grid-template-columns: repeat(auto-fill, minmax(250px,1fr)); gap: 14px; }
+    #skelGrid.on { display: grid; }
+    .skel {
+      border-radius: 12px; border: 1px solid var(--border);
+      background: linear-gradient(110deg, var(--surface) 30%, var(--surface2) 50%, var(--surface) 70%);
+      background-size: 300% 100%; animation: shimmer 1.6s ease infinite;
+    }
+    @keyframes shimmer { to { background-position: -200% 0; } }
+
+    .err-card { border-radius: 10px; padding: 14px 18px; background: rgba(255,91,91,.07); border: 1px solid rgba(255,91,91,.2); color: #ff9090; font-size: 13px; margin-bottom: 14px; }
+
+    /* ── Lightbox ── */
+    #lightbox {
+      display: none; position: fixed; inset: 0; z-index: 600;
+      background: rgba(4,6,12,.94); backdrop-filter: blur(20px);
+      align-items: center; justify-content: center; flex-direction: column; gap: 14px;
+    }
+    #lightbox.open { display: flex; }
+    #lightbox img { max-width: 88vw; max-height: 82vh; border-radius: 12px; box-shadow: 0 16px 80px rgba(0,0,0,.8); animation: lbIn .25s var(--ease) both; }
+    @keyframes lbIn { from { opacity:0; transform:scale(.94); } to { opacity:1; transform:scale(1); } }
+    .lb-toolbar { display: flex; align-items: center; gap: 12px; }
+    .lb-close { font-size: 22px; color: rgba(255,255,255,.45); cursor: pointer; transition: color .2s; user-select: none; }
+    .lb-close:hover { color: #fff; }
+    .lb-dl {
+      font-family: var(--sans); font-size: 12px; font-weight: 600;
+      color: var(--text); background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.15);
+      border-radius: 7px; padding: 6px 14px; cursor: pointer; transition: background .15s;
+    }
+    .lb-dl:hover { background: var(--accent); color: #000; border-color: var(--accent); }
+    .lb-copy {
+      font-family: var(--sans); font-size: 12px; font-weight: 600;
+      color: var(--text); background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.15);
+      border-radius: 7px; padding: 6px 14px; cursor: pointer; transition: background .15s, color .15s, border-color .15s;
+    }
+    .lb-copy:hover { background: rgba(0,212,255,.15); color: var(--accent); border-color: var(--border-hi); }
+    .lb-copy.copied { background: rgba(74,222,128,.15); color: var(--success); border-color: rgba(74,222,128,.3); }
+    .lb-name { font-family: var(--mono); font-size: 11px; color: var(--muted); }
+
+    /* ── Modals ── */
+    .modal-overlay {
+      display: none; position: fixed; inset: 0; z-index: 500;
+      background: rgba(4,6,12,.88); backdrop-filter: blur(14px);
+      align-items: center; justify-content: center;
+    }
+    .modal-overlay.open { display: flex; }
+
+    .modal-box {
+      background: var(--panel); border: 1px solid var(--border); border-radius: 18px;
+      width: min(500px, 94vw); padding: 34px 30px;
+      box-shadow: 0 24px 80px rgba(0,0,0,.6), 0 0 0 1px rgba(255,255,255,.04);
+      animation: popIn .4s cubic-bezier(.34,1.56,.64,1) both;
+    }
+    @keyframes popIn { from { opacity:0; transform:scale(.88) translateY(20px); } to { opacity:1; transform:none; } }
+
+    .modal-eyebrow { font-family: var(--mono); font-size: 10px; letter-spacing: .18em; color: var(--accent); text-transform: uppercase; margin-bottom: 14px; display: flex; align-items: center; gap: 8px; }
+    .modal-eyebrow::before { content: ''; display: block; width: 18px; height: 1px; background: var(--accent); }
+    .modal-box h2 { font-family: var(--display); font-size: 22px; font-weight: 800; margin-bottom: 10px; letter-spacing: -.02em; line-height: 1.2; }
+    .modal-box p  { font-size: 13px; color: var(--text-soft); line-height: 1.7; margin-bottom: 22px; }
+
+    .steps { border: 1px solid var(--border); border-radius: 10px; overflow: hidden; margin-bottom: 22px; }
+    .step { display: flex; gap: 12px; padding: 12px 14px; border-bottom: 1px solid var(--border); background: rgba(255,255,255,.015); }
+    .step:last-child { border-bottom: none; }
+    .step-n { flex-shrink: 0; width: 22px; height: 22px; background: var(--accent-dim); border: 1px solid rgba(0,212,255,.25); color: var(--accent); border-radius: 5px; display: flex; align-items: center; justify-content: center; font-family: var(--mono); font-size: 10px; margin-top: 2px; }
+    .step-t { font-size: 13px; font-weight: 700; margin-bottom: 2px; }
+    .step-d { font-size: 11.5px; color: var(--text-soft); line-height: 1.6; }
+    .step-d a { color: var(--accent); text-decoration: none; }
+    .step-d code { background: var(--surface2); border-radius: 3px; padding: 1px 5px; font-family: var(--mono); font-size: 11px; color: var(--accent); }
+
+    .field-label { font-size: 11px; font-weight: 700; color: var(--text-soft); text-transform: uppercase; letter-spacing: .08em; margin-bottom: 7px; }
+    .field-input {
+      width: 100%; background: var(--surface); border: 1px solid var(--border); border-radius: 9px;
+      padding: 11px 14px; font-family: var(--mono); font-size: 13px; color: var(--text);
+      outline: none; transition: border-color .2s, box-shadow .2s; caret-color: var(--accent);
+    }
+    .field-input::placeholder { color: var(--muted); }
+    .field-input:focus { border-color: var(--border-hi); box-shadow: 0 0 0 3px var(--accent-dim); }
+    .field-msg { font-size: 11.5px; min-height: 18px; margin: 6px 0 16px; }
+    .field-msg.err { color: var(--danger); }
+    .field-msg.ok  { color: var(--success); }
+
+    .modal-primary {
+      width: 100%; padding: 13px; border: none; border-radius: 10px;
+      font-family: var(--display); font-size: 14px; font-weight: 700; letter-spacing: .06em;
+      cursor: pointer; color: #000;
+      background: linear-gradient(135deg, var(--accent) 0%, #0099ff 100%);
+      box-shadow: 0 4px 20px rgba(0,212,255,.2); transition: box-shadow .2s, transform .15s;
+    }
+    .modal-primary:hover:not(:disabled) { box-shadow: 0 6px 28px rgba(0,212,255,.4); transform: translateY(-1px); }
+    .modal-primary:disabled { opacity: .4; cursor: not-allowed; transform: none; }
+
+    .modal-row { display: flex; gap: 8px; justify-content: flex-end; margin-top: 14px; }
+    .modal-row button { font-family: var(--sans); font-size: 13px; font-weight: 600; padding: 8px 16px; border-radius: 8px; cursor: pointer; border: 1px solid var(--border); background: var(--surface2); color: var(--text); transition: background .15s; }
+    .modal-row .m-save { background: var(--accent); border-color: var(--accent); color: #000; }
+    .modal-row .m-del  { color: var(--danger); border-color: rgba(255,91,91,.25); }
+    .modal-row .m-del:hover { background: rgba(255,91,91,.08); }
+
+    @media (max-width: 760px) {
+      html, body { overflow: auto; }
+      .app { grid-template-columns: 1fr; }
+      .left { border-right: none; border-bottom: 1px solid var(--border); }
+      #imageGrid, #skelGrid.on { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ── Header ── -->
+<header class="header">
+  <div class="header-logo">
+    <div class="logo-mark">SI</div>
+    <div class="logo-text">Shinonome Images<span>2.0</span> WebUI</div>
+  </div>
+  <div class="header-right">
+    <span class="badge" id="modelBadge">GPT-IMAGE-1</span>
+    <button class="hdr-btn" onclick="openApiModal()">⚙ APIキー設定</button>
+  </div>
+</header>
+
+<!-- ── App ── -->
+<div class="app">
+
+  <!-- LEFT -->
+  <aside class="left">
+    <div class="left-scroll">
+
+      <!-- Prompt -->
+      <section>
+        <div class="sec-head">
+          <div class="sec-head-l"><div class="sec-line"></div><div class="sec-title">Prompt</div></div>
+        </div>
+        <div class="prompt-wrap">
+          <textarea id="prompt" placeholder="プロンプトをここに入力してください…&#10;&#10;例: a cinematic portrait of a samurai in neon-lit Tokyo, photorealistic, dramatic lighting"></textarea>
+          <div class="char-count"><span id="charCount">0</span></div>
+        </div>
+      </section>
+
+      <div class="sep"></div>
+
+      <!-- Reference Images -->
+      <section>
+        <div class="sec-head">
+          <div class="sec-head-l"><div class="sec-line"></div><div class="sec-title">参考画像</div></div>
+          <button class="sec-action" onclick="clearRefImages()">すべて削除</button>
+        </div>
+
+        <input type="file" id="refFileInput" accept="image/*" multiple style="display:none" onchange="onRefFilesSelected(event)" />
+        <div class="ref-upload-btn" id="dropZone" onclick="$('refFileInput').click()">
+          <span class="ico">＋</span>
+          <span>クリック / ドロップで追加</span>
+        </div>
+        <div class="paste-hint"><kbd>Ctrl</kbd>+<kbd>V</kbd> でクリップボードから貼り付け可能</div>
+
+        <div id="refGrid"></div>
+
+        <div class="ref-status" id="refStatus" style="display:none">
+          <div><span id="refSelCount">0</span> 枚選択中 / <span id="refTotalCount">0</span> 枚</div>
+          <div class="ref-status-btns">
+            <button onclick="setAllRef(true)">全選択</button>
+            <button onclick="setAllRef(false)">全解除</button>
+          </div>
+        </div>
+      </section>
+
+      <div class="sep"></div>
+
+      <!-- Model Toggle -->
+      <section>
+        <div class="sec-head">
+          <div class="sec-head-l"><div class="sec-line"></div><div class="sec-title">モデル</div></div>
+        </div>
+        <div class="model-toggle" id="modelToggle">
+          <button class="model-btn active" id="btn-img1" onclick="selectModel('gpt-image-1')">
+            <span class="model-name">gpt-image-1</span>
+            <span class="model-note">Tier 1〜 対応</span>
+          </button>
+          <button class="model-btn" id="btn-img2" onclick="selectModel('gpt-image-2')">
+            <span class="model-name">gpt-image-2</span>
+            <span class="model-note">Tier 2〜 対応</span>
+          </button>
+        </div>
+      </section>
+
+      <div class="sep"></div>
+
+      <!-- Settings -->
+      <section>
+        <div class="sec-head">
+          <div class="sec-head-l"><div class="sec-line"></div><div class="sec-title">設定</div></div>
+        </div>
+        <div class="ctrl-grid">
+          <div class="ctrl">
+            <div class="ctrl-label">生成枚数</div>
+            <input type="number" id="n" value="4" min="1" max="4" />
+          </div>
+          <div class="ctrl">
+            <div class="ctrl-label">品質</div>
+            <select id="quality">
+              <option value="low">low</option>
+              <option value="medium" selected>medium</option>
+              <option value="high">high</option>
+            </select>
+          </div>
+          <div class="ctrl wide">
+            <div class="ctrl-label">サイズ</div>
+            <select id="size">
+              <option value="1920x1088">1920 × 1088 — 16:9（横長 FHD相当）</option>
+              <option value="1536x1024">1536 × 1024 — 3:2（横長）</option>
+              <option value="1280x720">1280 × 720 — 16:9（横長 HD）</option>
+              <option value="1024x1024" selected>1024 × 1024 — 1:1（正方形）</option>
+              <option value="720x1280">720 × 1280 — 9:16（縦長 HD）</option>
+              <option value="1024x1536">1024 × 1536 — 2:3（縦長）</option>
+              <option value="1088x1920">1088 × 1920 — 9:16（縦長 FHD相当）</option>
+              <option value="2560x1440">2560 × 1440 — 16:9（横長 2K）</option>
+              <option value="1440x2560">1440 × 2560 — 9:16（縦長 2K）</option>
+            </select>
+          </div>
+          <div class="ctrl">
+            <div class="ctrl-label">形式</div>
+            <select id="output_format">
+              <option value="png" selected>PNG</option>
+              <option value="jpeg">JPEG</option>
+              <option value="webp">WebP</option>
+            </select>
+          </div>
+          <div class="ctrl">
+            <div class="ctrl-label">モデレーション</div>
+            <select id="moderation">
+              <option value="auto" selected>auto</option>
+              <option value="low">low</option>
+            </select>
+          </div>
+        </div>
+      </section>
+
+    </div><!-- /left-scroll -->
+
+    <!-- Footer -->
+    <div class="left-footer">
+      <button id="generateBtn" onclick="generate()">
+        <span style="font-size:15px">✦</span>
+        画像を生成
+      </button>
+      <div class="mode-tag hidden" id="modeTag">
+        🖼 参考画像モード（edits API）
+      </div>
+    </div>
+  </aside>
+
+  <!-- RIGHT: Preview -->
+  <main class="right">
+    <div class="right-bar">
+      <div class="right-bar-title">
+        Preview
+        <span class="count-pill" id="countPill"></span>
+      </div>
+      <div class="right-bar-actions">
+        <button class="bar-btn" id="selAllBtn"  onclick="selectAllImgs(true)">全選択</button>
+        <button class="bar-btn" id="selNoneBtn" onclick="selectAllImgs(false)">全解除</button>
+        <button class="bar-btn sel-dl" id="dlSelBtn" onclick="downloadSelected()">⬇ 選択をDL</button>
+        <button class="bar-btn danger" id="clearBtn" onclick="clearResults()">✕ クリア</button>
+      </div>
+    </div>
+    <div class="right-scroll" id="rightScroll">
+      <div id="emptyState">
+        <div class="empty-icon-wrap"><span class="empty-icon">◈</span></div>
+        <div class="empty-title">プレビューエリア</div>
+        <div class="empty-desc">プロンプトを入力して「画像を生成」を押すと、ここに結果が表示されます。</div>
+      </div>
+      <div id="skelGrid"></div>
+      <div id="imageGrid"></div>
+    </div>
+  </main>
+</div>
+
+<!-- ── Lightbox ── -->
+<div id="lightbox" onclick="closeLb(event)">
+  <img id="lb-img" src="" alt="" onclick="event.stopPropagation()" />
+  <div class="lb-toolbar" onclick="event.stopPropagation()">
+    <span class="lb-name" id="lb-name"></span>
+    <button class="lb-copy" id="lb-copy-btn" onclick="copyLbImage()">⎘ コピー</button>
+    <button class="lb-dl"   id="lb-dl-btn">⬇ Download</button>
+    <span class="lb-close" onclick="closeLb()">✕</span>
+  </div>
+</div>
+
+<!-- ── Setup Wizard ── -->
+<div class="modal-overlay" id="setupOverlay">
+  <div class="modal-box">
+    <div class="modal-eyebrow">初回セットアップ</div>
+    <h2>まず APIキーを<br/>設定しましょう</h2>
+    <p>OpenAI の APIキーを登録することで画像生成が使えるようになります。キーはあなた自身の GAS プロジェクト内にのみ保存されます。</p>
+    <div class="steps">
+      <div class="step">
+        <div class="step-n">1</div>
+        <div>
+          <div class="step-t">OpenAI にログイン</div>
+          <div class="step-d"><a href="https://platform.openai.com" target="_blank">platform.openai.com</a> でアカウントを作成・チャージ。</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-n">2</div>
+        <div>
+          <div class="step-t">APIキーを発行</div>
+          <div class="step-d">「API Keys」→「Create new secret key」。<code>sk-...</code> の形式で発行されます。</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-n">3</div>
+        <div>
+          <div class="step-t">下に貼り付けて保存</div>
+          <div class="step-d">キーはあなたのプロジェクトのみに保存。再表示不可なので即コピーを。</div>
+        </div>
+      </div>
+    </div>
+    <div class="field-label">OpenAI APIキー</div>
+    <input class="field-input" type="text" id="setupKey" placeholder="sk-xxxxxxxxxxxxxxxxxxxxxxxx" autocomplete="off" />
+    <div class="field-msg" id="setupMsg"></div>
+    <button class="modal-primary" id="setupBtn" onclick="setupSave()">APIキーを保存してはじめる →</button>
+  </div>
+</div>
+
+<!-- ── API Edit Modal ── -->
+<div class="modal-overlay" id="apiModal">
+  <div class="modal-box" style="width:min(400px,92vw);padding:28px">
+    <h2 style="font-size:18px;margin-bottom:8px">⚙ APIキーの変更</h2>
+    <p>新しいキーで上書きするか、削除してリセットします。</p>
+    <div class="field-label">新しい APIキー</div>
+    <input class="field-input" type="text" id="editKey" placeholder="sk-xxxxxxxxxxxxxxxx" />
+    <div class="field-msg" id="editMsg"></div>
+    <div class="modal-row">
+      <button class="m-del" onclick="deleteKey()">削除</button>
+      <button onclick="closeApiModal()">キャンセル</button>
+      <button class="m-save" onclick="editSave()">保存</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  /* ══════════════════════════════════════════
+     STATE
+  ══════════════════════════════════════════ */
+  let refImages = [];
+  let selectedModel = 'gpt-image-1';
+  let lbCurrentSrc  = '';
+  let lbCurrentName = '';
+
+  /* ══════════════════════════════════════════
+     INIT
+  ══════════════════════════════════════════ */
+  /* ══════════════════════════════════════════
+     PERSIST STATE（localStorage）
+  ══════════════════════════════════════════ */
+  const SAVE_KEYS = ['prompt', 'n', 'quality', 'size', 'output_format', 'moderation'];
+
+  function saveState() {
+    try {
+      SAVE_KEYS.forEach(k => {
+        const el = $(k);
+        if (el) localStorage.setItem('si_' + k, el.value);
+      });
+      localStorage.setItem('si_model', selectedModel);
+    } catch(e) {}
+  }
+
+  function loadState() {
+    try {
+      SAVE_KEYS.forEach(k => {
+        const val = localStorage.getItem('si_' + k);
+        const el  = $(k);
+        if (val !== null && el) {
+          el.value = val;
+          // select要素で存在しないoption値の場合はデフォルトに戻す
+          if (el.tagName === 'SELECT' && el.value !== val) el.value = el.options[0].value;
+        }
+      });
+      const model = localStorage.getItem('si_model') || 'gpt-image-1';
+      selectModel(model);
+      // 文字数カウント更新
+      $('charCount').textContent = ($('prompt').value || '').length.toLocaleString();
+    } catch(e) {}
+  }
+
+  window.addEventListener('DOMContentLoaded', () => {
+    // ── 状態復元 ──
+    loadState();
+
+    $('prompt').addEventListener('input', () => {
+      $('charCount').textContent = $('prompt').value.length.toLocaleString();
+      saveState();
+    });
+
+    // 設定変更時に保存
+    SAVE_KEYS.filter(k => k !== 'prompt').forEach(k => {
+      const el = $(k);
+      if (el) el.addEventListener('change', saveState);
+    });
+
+    // APIキー確認（localStorage）
+    if (!localStorage.getItem('si_apikey')) $('setupOverlay').classList.add('open');
+
+    // ── Drag & Drop ──
+    const dz = $('dropZone');
+    dz.addEventListener('dragenter', e => { e.preventDefault(); dz.classList.add('drag-over'); });
+    dz.addEventListener('dragover',  e => { e.preventDefault(); dz.classList.add('drag-over'); });
+    dz.addEventListener('dragleave', e => { if (!dz.contains(e.relatedTarget)) dz.classList.remove('drag-over'); });
+    dz.addEventListener('drop', e => {
+      e.preventDefault();
+      dz.classList.remove('drag-over');
+      const files = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith('image/'));
+      if (!files.length) return;
+      addFilesToRef(files);
+    });
+
+    // ── Clipboard Paste（Ctrl+V） ──
+    document.addEventListener('paste', e => {
+      const tag = document.activeElement.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+      const items = Array.from(e.clipboardData.items).filter(it => it.type.startsWith('image/'));
+      if (!items.length) return;
+      e.preventDefault();
+      items.forEach((item, i) => {
+        const file = item.getAsFile();
+        if (!file) return;
+        const named = new File([file], `paste_${Date.now()}_${i}.png`, { type: file.type });
+        addFilesToRef([named]);
+      });
+    });
+  });
+
+  /* ══════════════════════════════════════════
+     REFERENCE IMAGES
+  ══════════════════════════════════════════ */
+  function onRefFilesSelected(e) {
+    addFilesToRef(Array.from(e.target.files));
+    e.target.value = '';
+  }
+
+  function addFilesToRef(files) {
+    files.forEach(file => {
+      if (!file.type.startsWith('image/')) return;
+      const reader = new FileReader();
+      reader.onload = ev => {
+        const id = 'ref_' + Date.now() + '_' + Math.random().toString(36).substr(2,5);
+        refImages.push({ id, name: file.name || 'image.png', dataUrl: ev.target.result, selected: true });
+        renderRefGrid();
+      };
+      reader.readAsDataURL(file);
+    });
+  }
+
+  function renderRefGrid() {
+    const grid = $('refGrid');
+    grid.innerHTML = '';
+
+    refImages.forEach(img => {
+      const card = document.createElement('div');
+      card.className = 'ref-card' + (img.selected ? ' checked' : '');
+      card.dataset.id = img.id;
+
+      const im = document.createElement('img');
+      im.src = img.dataUrl; im.alt = img.name; im.title = img.name;
+      im.addEventListener('click', e => { e.stopPropagation(); openLb(img.dataUrl, img.name); });
+
+      const chk = document.createElement('div');
+      chk.className = 'ref-check';
+
+      const del = document.createElement('button');
+      del.className = 'ref-del'; del.textContent = '✕'; del.title = '削除';
+      del.addEventListener('click', e => { e.stopPropagation(); removeRef(img.id); });
+
+      const nm = document.createElement('div');
+      nm.className = 'ref-name'; nm.textContent = img.name;
+
+      card.addEventListener('click', () => toggleRef(img.id));
+      card.appendChild(im); card.appendChild(chk); card.appendChild(del); card.appendChild(nm);
+      grid.appendChild(card);
+    });
+
+    updateRefStatus();
+  }
+
+  function toggleRef(id) {
+    const img = refImages.find(r => r.id === id);
+    if (img) { img.selected = !img.selected; renderRefGrid(); }
+  }
+
+  function removeRef(id) {
+    refImages = refImages.filter(r => r.id !== id);
+    renderRefGrid();
+  }
+
+  function clearRefImages() {
+    if (refImages.length && !confirm('参考画像をすべて削除しますか？')) return;
+    refImages = [];
+    renderRefGrid();
+  }
+
+  function setAllRef(sel) {
+    refImages.forEach(r => r.selected = sel);
+    renderRefGrid();
+  }
+
+  function selectModel(model) {
+    selectedModel = model;
+    $('btn-img1').classList.toggle('active', model === 'gpt-image-1');
+    $('btn-img2').classList.toggle('active', model === 'gpt-image-2');
+    $('modelBadge').textContent = model.toUpperCase();
+    saveState();
+  }
+
+  function updateRefStatus() {
+    const total = refImages.length;
+    const sel   = refImages.filter(r => r.selected).length;
+    const status  = $('refStatus');
+    const modeTag = $('modeTag');
+
+    if (total === 0) {
+      status.style.display = 'none';
+      modeTag.classList.add('hidden');
+    } else {
+      status.style.display = 'flex';
+      $('refSelCount').textContent = sel;
+      $('refTotalCount').textContent = total;
+      modeTag.classList.toggle('hidden', sel === 0);
+    }
+  }
+
+  /* ══════════════════════════════════════════
+     GENERATE
+  ══════════════════════════════════════════ */
+  function generate() {
+    const prompt = $('prompt').value.trim();
+    if (!prompt) { alert('プロンプトを入力してください。'); return; }
+    if ($('generateBtn').disabled) return; // ✅ 連打防止
+
+    const selectedRefs = refImages
+      .filter(r => r.selected)
+      .map(r => ({ dataUrl: r.dataUrl, name: r.name }));
+
+    const n   = parseInt($('n').value) || 1;
+    const fmt = $('output_format').value;
+    const btn = $('generateBtn');
+
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span>生成中…';
+    setEmpty(false);
+    showSkel(n);
+
+    const params = {
+      prompt,
+      model:         selectedModel,
+      n,
+      size:          $('size').value,
+      quality:       $('quality').value,
+      output_format: fmt,
+      moderation:    $('moderation').value,
+      refImages:     selectedRefs,
+    };
+
+    generateImages(params, fmt);
+  }
+
+  /* ══════════════════════════════════════════
+     OPENAI API（ブラウザから直接）
+  ══════════════════════════════════════════ */
+  async function generateImages(params, fmt) {
+    const apiKey = localStorage.getItem('si_apikey');
+    if (!apiKey) { onError('APIキーが未設定です。'); return; }
+    const hasRef = params.refImages && params.refImages.length > 0;
+    try {
+      const res = hasRef
+        ? await callEdits(apiKey, params)
+        : await callGenerations(apiKey, params);
+      onResult(res, fmt);
+    } catch(e) { onError(e.message || e.toString()); }
+  }
+
+  async function fetchWithRetry(url, options) {
+    const waits = [15000, 30000, 60000, 120000, 240000];
+    for (let i = 0; i <= waits.length; i++) {
+      const res = await fetch(url, options);
+      if (res.status !== 429) {
+        const raw = await res.text();
+        let json;
+        try { json = JSON.parse(raw); } catch(e) { throw new Error('HTTP ' + res.status + ': ' + raw); }
+        if (json.error) throw new Error(json.error.message || 'OpenAI APIエラー');
+        return { images: (json.data || []).map(d => ({ b64_json: d.b64_json || '', revised_prompt: d.revised_prompt || '' })) };
+      }
+      if (i < waits.length) await new Promise(r => setTimeout(r, waits[i]));
+      else throw new Error('レート制限が続いています。数分後に再試行してください。');
+    }
+  }
+
+  async function callGenerations(apiKey, params) {
+    return fetchWithRetry('https://api.openai.com/v1/images/generations', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + apiKey },
+      body: JSON.stringify({
+        model:         params.model || 'gpt-image-2',
+        prompt:        params.prompt,
+        n:             Math.min(Math.max(parseInt(params.n)||1,1),4),
+        size:          params.size          || '1024x1024',
+        quality:       params.quality       || 'medium',
+        output_format: params.output_format || 'png',
+        moderation:    params.moderation    || 'auto',
+      }),
+    });
+  }
+
+  async function callEdits(apiKey, params) {
+    const n  = Math.min(Math.max(parseInt(params.n)||1,1),4);
+    const fd = new FormData();
+    fd.append('model',   params.model || 'gpt-image-2');
+    fd.append('prompt',  params.prompt);
+    fd.append('n',       String(n));
+    fd.append('size',    params.size    || '1024x1024');
+    fd.append('quality', params.quality || 'medium');
+    for (let i = 0; i < params.refImages.length; i++) {
+      const img   = params.refImages[i];
+      const mime  = img.dataUrl.match(/^data:([^;]+);/)?.[1] || 'image/png';
+      const ext   = mime.split('/')[1] || 'png';
+      const blob  = await fetch(img.dataUrl).then(r => r.blob());
+      const field = params.refImages.length === 1 ? 'image' : 'image[]';
+      fd.append(field, blob, `ref_${i}.${ext}`);
+    }
+    return fetchWithRetry('https://api.openai.com/v1/images/edits', {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + apiKey },
+      body: fd,
+    });
+  }
+    const btn = $('generateBtn');
+    btn.disabled = false;
+    btn.innerHTML = '<span style="font-size:15px">✦</span>画像を生成';
+    hideSkel();
+
+    if (res.error) {
+      const e = document.createElement('div');
+      e.className = 'err-card';
+      e.textContent = '⚠ ' + res.error;
+      $('imageGrid').prepend(e);
+      updateResultBar();
+      return;
+    }
+
+    const grid = $('imageGrid');
+    setEmpty(false);
+
+    // バッチをフラグメントにまとめて先頭に挿入（新しいものが上）
+    const frag = document.createDocumentFragment();
+    let totalCount = grid.querySelectorAll('.img-card').length;
+
+    res.images.forEach((img, i) => {
+      const mime = fmt==='jpeg'?'image/jpeg':fmt==='webp'?'image/webp':'image/png';
+      const src  = `data:${mime};base64,${img.b64_json}`;
+      totalCount++;
+      const name = `image_${totalCount}.${fmt}`;
+
+      const card = document.createElement('div');
+      card.className = 'img-card';
+      card.style.animationDelay = `${i*65}ms`;
+      card.dataset.src  = src;
+      card.dataset.name = name;
+
+      // 選択チェック
+      const chk = document.createElement('div');
+      chk.className = 'img-sel-check';
+      chk.addEventListener('click', e => { e.stopPropagation(); toggleImgSel(card); });
+
+      const im = document.createElement('img');
+      im.src = src; im.alt = name;
+      im.style.cursor = 'zoom-in';
+      im.addEventListener('click', () => openLb(src, name));
+
+      const ov = document.createElement('div');
+      ov.className = 'img-card-overlay';
+
+      const num = document.createElement('span');
+      num.className = 'ov-num'; num.textContent = `#${totalCount}`;
+
+      const dlBtn = document.createElement('button');
+      dlBtn.className = 'ov-btn'; dlBtn.textContent = '⬇ DL';
+      dlBtn.addEventListener('click', e => { e.stopPropagation(); dlImg(src, name); });
+
+      ov.appendChild(num); ov.appendChild(dlBtn);
+      card.appendChild(chk);
+      card.appendChild(im);
+      card.appendChild(ov);
+      frag.appendChild(card);
+    });
+
+    // skelGridの直後に挿入（先頭）
+    grid.insertBefore(frag, grid.firstChild);
+
+    updateResultBar();
+    $('rightScroll').scrollTop = 0;
+  }
+
+  function onError(e) {
+    $('generateBtn').disabled = false;
+    $('generateBtn').innerHTML = '<span style="font-size:15px">✦</span>画像を生成';
+    hideSkel();
+    alert('通信エラー: ' + e);
+    if (!$('imageGrid').children.length) setEmpty(true);
+  }
+
+  /* ══════════════════════════════════════════
+     UI HELPERS
+  ══════════════════════════════════════════ */
+  function setEmpty(show) { $('emptyState').style.display = show ? 'flex' : 'none'; }
+
+  function showSkel(n) {
+    const sg = $('skelGrid'); sg.innerHTML = '';
+    const ratio = { '1024x1536':'2/3', '1088x1920':'9/16', '720x1280':'9/16', '1440x2560':'9/16', '1024x1024':'1/1', '1280x720':'16/9', '1920x1088':'16/9', '2560x1440':'16/9' }[$('size').value] || '3/2';
+    for (let i=0;i<n;i++) {
+      const s = document.createElement('div');
+      s.className = 'skel'; s.style.aspectRatio = ratio;
+      s.style.animationDelay = `${i*.12}s`;
+      sg.appendChild(s);
+    }
+    sg.classList.add('on');
+  }
+  function hideSkel() { const sg=$('skelGrid'); sg.classList.remove('on'); sg.innerHTML=''; }
+
+  function toggleImgSel(card) {
+    card.classList.toggle('selected');
+    updateResultBar();
+  }
+
+  function selectAllImgs(sel) {
+    $('imageGrid').querySelectorAll('.img-card').forEach(c => c.classList.toggle('selected', sel));
+    updateResultBar();
+  }
+
+  function downloadSelected() {
+    const cards = Array.from($('imageGrid').querySelectorAll('.img-card.selected'));
+    if (!cards.length) return;
+    cards.forEach((card, i) => {
+      setTimeout(() => dlImg(card.dataset.src, card.dataset.name), i * 150);
+    });
+  }
+
+  function updateResultBar() {
+    const cards    = $('imageGrid').querySelectorAll('.img-card');
+    const selected = $('imageGrid').querySelectorAll('.img-card.selected');
+    const total    = cards.length;
+    const selCount = selected.length;
+
+    const pill = $('countPill');
+    pill.textContent = selCount > 0 ? `${selCount} / ${total} 枚` : `${total} 枚`;
+    pill.classList.toggle('show', total > 0);
+
+    $('selAllBtn') .classList.toggle('show', total > 0);
+    $('selNoneBtn').classList.toggle('show', selCount > 0);
+    $('dlSelBtn')  .classList.toggle('show', selCount > 0);
+    $('clearBtn')  .classList.toggle('show', total > 0);
+  }
+
+  function clearResults() {
+    if (!confirm('プレビューの画像をすべて削除しますか？')) return;
+    $('imageGrid').innerHTML = '';
+    updateResultBar();
+    setEmpty(true);
+  }
+
+  /* ══════════════════════════════════════════
+     LIGHTBOX
+  ══════════════════════════════════════════ */
+  function openLb(src, name) {
+    lbCurrentSrc  = src;
+    lbCurrentName = name || 'image';
+    $('lb-img').src = src;
+    $('lb-name').textContent = name || '';
+    $('lb-dl-btn').onclick = () => dlImg(src, name);
+    const copyBtn = $('lb-copy-btn');
+    copyBtn.textContent = '⎘ コピー';
+    copyBtn.classList.remove('copied');
+    $('lightbox').classList.add('open');
+  }
+  function closeLb(e) {
+    if (e && e.target !== $('lightbox')) return;
+    $('lightbox').classList.remove('open');
+    setTimeout(() => { $('lb-img').src=''; }, 300);
+  }
+
+  async function copyLbImage() {
+    const btn = $('lb-copy-btn');
+    try {
+      const res  = await fetch(lbCurrentSrc);
+      const blob = await res.blob();
+      const pngBlob = blob.type === 'image/png' ? blob : await convertToPng(blob);
+      await navigator.clipboard.write([
+        new ClipboardItem({ 'image/png': pngBlob })
+      ]);
+      btn.textContent = '✓ コピーしました';
+      btn.classList.add('copied');
+      setTimeout(() => { btn.textContent = '⎘ コピー'; btn.classList.remove('copied'); }, 2000);
+    } catch (err) {
+      alert('クリップボードへのコピーに失敗しました。\nブラウザの制限により、Downloadからご利用ください。');
+    }
+  }
+
+  function convertToPng(blob) {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        canvas.width = img.width; canvas.height = img.height;
+        canvas.getContext('2d').drawImage(img, 0, 0);
+        canvas.toBlob(b => b ? resolve(b) : reject(new Error('変換失敗')), 'image/png');
+        URL.revokeObjectURL(img.src);
+      };
+      img.onerror = reject;
+      img.src = URL.createObjectURL(blob);
+    });
+  }
+
+  /* ══════════════════════════════════════════
+     API MODALS
+  ══════════════════════════════════════════ */
+  function openApiModal() { $('editKey').value=''; setMsg($('editMsg'),'',''); $('apiModal').classList.add('open'); }
+  function closeApiModal() { $('apiModal').classList.remove('open'); }
+
+  function setupSave() {
+    const key=v('setupKey'), msg=$('setupMsg'), btn=$('setupBtn');
+    if (!key.startsWith('sk-')) { setMsg(msg,'⚠ sk- で始まるキーを入力してください','err'); return; }
+    try {
+      localStorage.setItem('si_apikey', key);
+      setMsg(msg,'✓ 保存しました','ok');
+      setTimeout(() => $('setupOverlay').classList.remove('open'), 700);
+    } catch(e) { setMsg(msg,'⚠ 保存に失敗しました','err'); }
+  }
+
+  function editSave() {
+    const key=v('editKey'), msg=$('editMsg');
+    if (!key.startsWith('sk-')) { setMsg(msg,'⚠ sk- で始まるキーを入力してください','err'); return; }
+    try {
+      localStorage.setItem('si_apikey', key);
+      closeApiModal();
+      alert('✓ APIキーを更新しました。');
+    } catch(e) { setMsg(msg,'⚠ 保存に失敗しました','err'); }
+  }
+
+  function deleteKey() {
+    if (!confirm('APIキーを削除しますか？')) return;
+    localStorage.removeItem('si_apikey');
+    closeApiModal();
+    $('setupKey').value=''; setMsg($('setupMsg'),'','');
+    $('setupBtn').disabled=false; $('setupBtn').textContent='APIキーを保存してはじめる →';
+    $('setupOverlay').classList.add('open');
+  }
+
+  /* ══════════════════════════════════════════
+     UTILS
+  ══════════════════════════════════════════ */
+  function $(id) { return document.getElementById(id); }
+  function v(id) { return $(id).value.trim(); }
+  function setMsg(el,txt,cls) { el.textContent=txt; el.className='field-msg'+(cls?' '+cls:''); }
+  function dlImg(src,name) { const a=document.createElement('a'); a.href=src; a.download=name; a.click(); }
+
+  document.addEventListener('keydown', e => {
+    if (e.key==='Escape') { $('lightbox').classList.remove('open'); closeApiModal(); }
+  });
+</script>
+</body>
+</html>
